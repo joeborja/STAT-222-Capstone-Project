@@ -1,0 +1,216 @@
+---
+title: "Stat 222- EDA"
+author: "A.J. Torre"
+date: "February 19, 2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(tidy.opts=list(width.cutoff=60),tidy=TRUE)
+library(usmap)
+library(ggplot2)
+library(dplyr)
+```
+
+# Data Cleaning/ Working with Initial Data Set
+
+This data is pretty clean to begin with so there's only a few steps to clean it. 
+```{r cars}
+#read data into R
+death_rate_data<-read.csv("C:/Users/AJ/OneDrive/Documents/Stat 222/deathrate.csv")
+
+#do some cleaning, data is relatively clean so we don't have too much to do
+
+#removing missing values
+death_rate_data<-na.omit(death_rate_data)
+#checking to make sure there are no missing values
+nrow(death_rate_data[!complete.cases(death_rate_data),])
+
+#removing any duplicated values
+death_rate_data<-distinct(death_rate_data)
+```
+
+Next, after cleaning the data, we can add a column for poverty rate in each county by dividing the number of people in poverty by the total population.
+```{r}
+#getting poverty rate by divding poverty by population, see what data says about what exactly poverty means?
+death_rate_data <- transform(death_rate_data, new = Poverty / Population)
+colnames(death_rate_data)[colnames(death_rate_data)=="new"] <- "PovertyRate"
+
+#check to see that this happened
+head(death_rate_data)
+```
+
+Next, we will subset the data from 2014 to plot it as 2014 is the most recent year in our provided data set. Then, we plot the OD deathrate against the poverty rate and see if there are any clear trends.
+
+```{r}
+#get only 2014 data
+death_rate_14<-subset(death_rate_data, Year==2014)
+
+head(death_rate_14)
+
+#just for 2014, plot poverty rate against death
+plot_poverty_death_14<-ggplot(death_rate_14, aes(x=PovertyRate, y=Deathrate)) + 
+  geom_point(color="darkblue")+ 
+  ggtitle("Poverty Rate vs Deathrate by County in 2014") +
+  xlab("Poverty Rate") + ylab("Deathrate")
+
+#don't see any very clear correlation?!
+plot_poverty_death_14
+
+```
+
+Actually, if we plot all the deathrates against all the poverty rates, there is still no clear correlation.
+```{r}
+#for all years,plot poverty rate against death rate
+points_poverty_death<-ggplot(death_rate_data, aes(x=PovertyRate, y=Deathrate))+geom_point(color="red") +
+  ggtitle("Poverty Rate vs Deathrate by County for 1999 to 2014") +
+  xlab("Poverty Rate") + ylab("Deathrate")
+points_poverty_death
+```
+
+Next, we try to look at three counties that had high deathrates due to overdose in 2014, and we examine their trends overtime.
+```{r}
+#look at which counties have high deathrates
+head(death_rate_14[order(-death_rate_14$Deathrate),])
+
+#see increase over time for Acadia county in LA
+acadia_la_data<-subset(death_rate_data, County == "Acadia Parish, LA")
+acadia_la_data
+acadia__death_plot<-ggplot(acadia_la_data, aes(x=Year, y=Deathrate))+geom_point(color="coral2")+
+  ggtitle("Overdose Deathrates in Acadia County from 1999 to 2014") +
+  xlab("Year") + ylab("Deathrate")
+acadia__death_plot
+```
+
+Out of curiosity, we can look at the rate of poverty over time in Acadia, LA to see if there is any clear increase in the poverty rate, just as there is a clear increase in deathrate. For Acadia county, it doesn't look like the deathrates and poverty rates are growing together.
+```{r}
+#plot poverty in Acadia county over time
+acadia_poverty_plot<-ggplot(acadia_la_data, aes(x=Year, y=PovertyRate)) + geom_point(color="maroon1")+
+  ggtitle("Poverty Rate in Acadia County from 1999 to 2014") +
+  xlab("Years") + ylab("Poverty Rate")
+acadia_poverty_plot
+```
+We will do the same for 2 other counties that have high death rates in 2014: Bath, KY and Abbeville, SC. 
+```{r}
+#see increase in OD deaths over time
+bath_ky_data<-subset(death_rate_data, County == "Bath County, KY")
+bath_ky_data
+bath_death_plot<-ggplot(bath_ky_data, aes(x=Year, y= Deathrate))+geom_line(color="slateblue")+
+  ggtitle("Overdose Deathrates in Bath County from 1999 to 2014") +
+  xlab("Year") + ylab("Deathrate")
+bath_death_plot
+```
+Below, we plot the poverty rate in Bath County. It does seem like an overall trend that poverty is increasing overtime, but also from the graph it also seems like poverty drastically decreased in 2014. 
+```{r}
+#looking at poverty overtime in Bath county
+bath_poverty_plot<-ggplot(bath_ky_data, aes(x=Year, y=PovertyRate)) + geom_point(color="sienna4")+
+  ggtitle("Poverty Rate in Bath County from 1999 to 2014") +
+  xlab("Year") + ylab("Poverty Rate")
+bath_poverty_plot
+```
+Next, we plot the death and poverty rates for Abbeville County. 
+```{r}
+#see increase in OD deaths 
+abbeville_sc_data<-subset(death_rate_data, County == "Abbeville County, SC")
+abbeville_sc_data
+abbeville_death_plot<-ggplot(abbeville_sc_data, aes(x=Year, y= Deathrate))+geom_line(color="violetred")+
+  ggtitle("Overdose Deathrates in Abbeville County from 1999 to 2014") +
+  xlab("Year") + ylab("Deathrate")
+abbeville_death_plot
+```
+
+```{r}
+#looking at poverty overtime in Abbeville county
+abbeville_poverty_plot<-ggplot(abbeville_sc_data, aes(x=Year, y=PovertyRate)) + geom_point(color="seagreen")+
+  ggtitle("Poverty Rates in Abbeville County from 1999-2014") +
+  xlab("Year") + ylab("Poverty Rate")
+abbeville_poverty_plot
+```
+
+Next, we plot the average county deathrate over the years. We use the `dplyr` package to do some subsetting and averaging of data. We can see a clear increase in deathrates due to overdose over this 15 year period.
+```{r}
+#getting yearly increase in overall death rates data
+yearly_death<-death_rate_data %>% group_by(Year) %>% summarize(mean_death_rate= mean(Deathrate, na.rm= TRUE))
+typeof(yearly_death)
+
+#plot average death due to OD overtime
+yearly_death_plot<-ggplot(yearly_death, aes(x=Year, y=mean_death_rate))+geom_point(color="hotpink4")+
+  ggtitle("Average County Overdose Deathrates 1999 to 2014") +
+  xlab("Year") + ylab("Deathrate")
+yearly_death_plot
+```
+
+Next, we can look at the average poverty rate per county and see if there are any trends with the poverty rate. We also see a general trend of poverty increasing over time, which (to me) is surprising. 
+```{r}
+#want to see how poverty is over time
+yearly_poverty<-death_rate_data %>% group_by(Year) %>% summarize(mean_poverty_rate = mean(PovertyRate, na.rm= TRUE))
+yearly_poverty_plot<-ggplot(yearly_poverty, aes(x=Year, y=mean_poverty_rate)) + geom_point(color="green4")+
+  ggtitle("Average County Poverty Rates 1999 to 2014") +
+  xlab("Year") + ylab("Poverty Rate")
+yearly_poverty_plot
+#see that poverty has been increasing overtime
+```
+
+Next, using the `usmap` package in R, we can create our own heatmaps of the US with the deathrate data. 
+```{r}
+#in order to use the usmap package, need column to be exactly named "fips"
+colnames(death_rate_14)[colnames(death_rate_14)=="FIPS"] <- "fips"
+
+#creating heatmap for deathrate data 2014
+plot_usmap(data = death_rate_14, values = "Deathrate", lines = "black") + 
+  scale_fill_continuous(
+    low = "white", high = "blue", name = "Drug Poisoning Deathrates (2014)", label = scales::comma
+  ) + theme(legend.position = "right")
+```
+
+We can also make a heatmap with the poverty rates to again see if there is any overlap between the poverty and overdose deathrates.
+```{r}
+#plot poverty in US by county in 2014
+plot_usmap(data = death_rate_14, values = "PovertyRate", lines = "black") + 
+  scale_fill_continuous(
+    low = "white", high = "slateblue", name = "Poverty Rates US 2014", label = scales::comma
+  ) + theme(legend.position = "right")
+
+```
+
+# Working with Outside Data
+
+For the below two graphs, I downloaded the drug overdose deathrates for 2016 and 2017 from the CDC website. I also downloaded data on the percent change of deathrates due to drug OD from 2016 to 2017. The heat maps are made using the `usmap` package in R.
+
+This map is the percent change in deaths due OD from 2016 to 2017 at the state level.
+```{r}
+#downloaded data from CDC website on states' percent change in deaths due to OD from 2016 to 2017
+change_16_17_deaths<-read.csv("C:/Users/AJ/OneDrive/Documents/Stat 222/DrugODDeathRateIncreaseFrom2016-2017-USStates.csv")
+head(change_16_17_deaths)
+
+plot_usmap(data = change_16_17_deaths, values = "change", lines = "black") + 
+  scale_fill_continuous(
+    low = "white", high = "indianred2", name = "Percent Change in Deaths due to OD from 2016-17", label = scales::comma
+  ) + theme(legend.position = "right")
+```
+
+This heatmap is the deathrate due to OD in 2017 at the state level
+```{r}
+#make a heat map of deaths due to Overdose in 2017, plotted deathrates so deaths per 100,000 people
+death_17_rates<-read.csv("C:/Users/AJ/OneDrive/Documents/Stat 222/drug-overdose-deaths-state-2017.csv")
+head(death_17_rates)
+colnames(death_17_rates)[colnames(death_17_rates)=="State"] <- "state"
+plot_usmap(data = death_17_rates, values = "rate", lines = "black") + 
+  scale_fill_continuous(
+    low = "white", high = "purple", name = "Deathrate due to Drug Overdose in 2017", label = scales::comma
+  ) + theme(legend.position = "right")
+
+```
+
+Lastly, this heatmap is the deathrate due to OD in 2016 at the state level. 
+```{r}
+#make a heat map of deaths due to overdose in 2016, plotted deathrates so deaths per 100,000 people
+death_16_rates<-read.csv("C:/Users/AJ/OneDrive/Documents/Stat 222/death-rate-overdose-2016.csv")
+head(death_16_rates)
+colnames(death_16_rates)[colnames(death_16_rates)=="State"] <- "state"
+plot_usmap(data = death_16_rates, values = "rate", lines = "black") + 
+  scale_fill_continuous(
+    low = "white", high = "green", name = "Deathrate due to Drug Overdose in 2016", label = scales::comma
+  ) + theme(legend.position = "right")
+
+```
