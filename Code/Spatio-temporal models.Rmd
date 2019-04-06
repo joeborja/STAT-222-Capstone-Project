@@ -1,0 +1,75 @@
+---
+title: "Spatio-temporal models"
+author: "Joe Borja"
+date: "3/7/2019"
+output: html_notebook
+---
+
+```{r, include = FALSE}
+library(spacetime)
+```
+
+## Notes 
+
+$$
+\hat{C}_{z}^{(\tau)} = \frac{1}{T-\tau} \sum_{j=1}^T (Z_{t_j} - \hat{\mu}_{z,s})(Z_{t_j - \tau} - \hat{\mu}_{z,s})^\prime
+$$
+Covariance between spatial points averaged over time 
+
+1. Empirical spatial mean (average over time)
+2. Empirical temporal mean (time series representing average over space)
+3. Empirical spatial covariablity : How does the value at a given spatial point covary with another spatial point some time in the past 
+
+To measure joint spatio-temporal dependence we make the following assumptions
+1. The mean measurement depends on space but not on time (alpha = 0)
+2. The second moment depends only on the lag differences in space and time.
+
+Under these assumptions we can measure dependence using the following statistics:
+1. Empirical spatio-temporal covariogram : Covariance measure between points within a given spatial and temporal tolerance 
+2. Semivariograms : Closely related
+
+### Empirical orthogonal functions
+
+- Apply PCA to lag-0 spatial covariance matrix $\hat{C}_z^(0)$
+- Eigenvectors are spatial maps known as empirical orthogonal functions (EOFs)
+- From EOFs we can obtain principal component time series 
+
+Use cases:
+1. EOF coefficients provide understanding about spatial patterns of variability 
+2. Dimension reduction 
+
+## Models
+
+Questions: 
+1. Inference: What models fit the growth patterns of overdose counts?
+2. Predictions: Can we develop a predictive model 
+3. Causality: Ideas for interventions? 
+
+### Simple linear model
+
+For each spatial point $i=1,\dots,m$ and time point $t=1,\dots,T$ we model the death counts $x_{i,t}$ as 
+
+$$
+x_{i,t} = \beta_{i,t} x_{i,t-1}
+$$
+
+We test the following hypotheses:
+1. Linear growth over time: $$\beta_{\cdot,1} = \cdots = \beta_{\cdot, T}$$
+2. Consistent growth over space $$\beta_{1,\cdot} = \cdots = \beta_{m, \cdot}$$
+
+The first hypothesis tests whether the growth patterns across space remain consistent over time.
+
+The second hypothesis tests whether the growth patterns over time remain consistent across space.  
+
+F-test
+$$
+H_0: \beta_1 = \beta_2 = \cdots = \beta_p = 0
+$$
+versus
+$$
+H_1: \text{not all } \beta_i = 0
+$$
+Test statistic
+$$
+F = \frac{(SS_{\text{Reg}} / \sigma^2) / p}{(SS_{\text{Reg}} / \sigma^2) / (n-(p+1))} \sim F_{p, n-(p+1)}
+$$
