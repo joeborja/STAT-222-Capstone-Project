@@ -23,9 +23,10 @@ data <- data[-c(788, 3924, 7060, 10196),]
 
 # Single county
 
-alameda <- data[data$County == 'Alameda County, CA', ]
-alameda_y <- alameda[alameda$Year %in% 2000:2014, ]$Deathrate
-alameda_x <- alameda[alameda$Year %in% 1999:2013, ]$Deathrate
+county_name = 'Alameda County, CA'
+alameda <- data[data$County == county_name, ]
+alameda_y <- exp(alameda[alameda$Year %in% 2000:2014, ]$Deathrate)
+alameda_x <- exp(alameda[alameda$Year %in% 1999:2013, ]$Deathrate)
 alameda_X <- diag(alameda_x)
 beta <- coef(lm(alameda_y ~ alameda_X + 0))
 # Note: We should probably look into changing the linear model
@@ -47,19 +48,21 @@ X_list <- vector('list', n)
 i <- 1
 for (county_name in unique_counties) {
   county <- data[data$County == county_name,]
-  county_y <- county[county$Year %in% 2000:2014, ]$Deathrate
-  county_x <- county[county$Year %in% 1999:2013, ]$Deathrate
+  county_y <- exp(county[county$Year %in% 2000:2014, ]$Deathrate)
+  county_x <- exp(county[county$Year %in% 1999:2013, ]$Deathrate)
   county_X <- diag(county_x)
   y_list[[i]] <- county_y
   X_list[[i]] <- county_X
   i <- i+1
 }
 
+library(Matrix)
+
 y <- do.call(c, y_list)
 X <- do.call(bdiag, X_list)
 X <- as.matrix(X)
 beta <- coef(lm(y ~ X + 0))
-plot(beta)
+plot(log(beta))
 
 ## Regularized regression
 
@@ -78,14 +81,18 @@ ridge <- function(y, X, lambda, prior_mean) {
 # Single county
 
 # Should recover original linear regression 
-fit <- ridge(alameda_y, alameda_X, lambda = 0, rep(1,15))
-plot(fit)
+beta <- ridge(alameda_y, alameda_X, lambda = 1000000, rep(1,15))
+delta <- log(beta)
+plot(delta)
 
 # Should get closer to all ones vector as lambda increases
-fit <- ridge(alameda_y, alameda_X, lambda = 10000, rep(1,15))
-plot(fit)
+beta <- ridge(alameda_y, alameda_X, lambda = 10000, rep(1,15))
+delta <- log(beta)
+plot(delta)
 
 # Multiple counties
 
-fit <- ridge(y, X, lambda = 10000, rep(1,length(y)))
-plot(fit)
+beta <- ridge(y, X, lambda = 0, rep(1,length(y)))
+delta <- log(beta)
+plot(delta)
+
