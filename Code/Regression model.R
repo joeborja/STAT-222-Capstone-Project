@@ -92,7 +92,9 @@ plot(delta)
 
 # Multiple counties
 
-beta <- ridge(y, X, lambda = 0, rep(1,length(y)))
+beta <- ridge(y, X, lambda = 100000000000, rep(1,length(y)))
 delta <- log(beta)
 plot(delta)
+lambda = 100000
+sum(d**2 / (d**2 + lambda))
 
