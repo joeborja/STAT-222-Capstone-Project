@@ -1,0 +1,189 @@
+---
+title: "Stat 222 2nd Presentation Code"
+author: "A.J. Torre"
+date: "April 24, 2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyr)
+library(dplyr)
+library(stringr)
+library(tidyverse)
+library(usmap)
+library(scales)
+library(ggplot2)
+```
+
+
+## Ridge Regression
+
+The following code implements ridge regression for fitting the linear model using counties in California since we don't have enough memory to run this on every single county in the U.S.
+
+```{r}
+#read data itnto R
+data<-read.csv("C:/Users/AJ/OneDrive/Documents/Stat 222/deathrate.csv")
+
+#clean data
+
+#drop redundant index column
+data$X <- NULL
+
+#drop counties with missing poverty data
+data <- data[data$County != 'Kalawao County, HI',]
+data <- data[data$County != 'Mc Kean County, PA',]
+
+#drop duplicate rows
+data <- data[-c(788, 3924, 7060, 10196),]
+```
+
+To subset data to only have California counties:
+
+```{r}
+split_data<-separate(data = data, col = County, into = c("County", "State"), sep = ",")
+ca_split_data<-subset(split_data, State==" CA")
+ca_split_data_unique_counties<-unique(ca_split_data$County)
+head(ca_split_data_unique_counties)
+```
+Implementing the ridge regression on our `ca_split_data_unique_counties`:
+```{r}
+n <- length(ca_split_data_unique_counties)
+y_list <- vector("list", n)
+X_list <- vector('list', n)
+i <- 1
+
+for (county_name in ca_split_data_unique_counties) {
+  county <- ca_split_data[ca_split_data$County == county_name,]
+  county_y <- county[county$Year %in% 2000:2014, ]$Deathrate
+  county_x <- county[county$Year %in% 1999:2013, ]$Deathrate
+  county_X <- diag(county_x)
+  y_list[[i]] <- county_y
+  X_list[[i]] <- county_X
+  i <- i+1
+}
+
+library(Matrix)
+y <- do.call(c, y_list)
+X <- do.call(bdiag, X_list)
+X <- as.matrix(X)
+beta <- coef(lm(y ~ X + 0))
+
+#no restraints on lambda, using every data point as a parameter
+plot(beta,xlab="California Counties 1999-2014", ylab="Coefficient", main="Deathrate Coefficients for California Counties from 1999-2014")
+
+```
+Ridge regression for lambda=100,000
+```{r}
+ridge <- function(y, X, lambda, prior_mean) {
+  n <- dim(X)[1]
+  p <- dim(X)[2]
+  return(solve((t(X) %*% X + lambda * diag(p)), t(X) %*% y + lambda * prior_mean))
+}
+
+beta1<- ridge(y, X, lambda = 100000, rep(1,15))
+plot(beta1, xlab="California Counties from 1999-2014", ylab="Coefficients w/ Lambda=100,000", main="Deathrate Coefficients for Lambda=100,000 W/ California Counties")
+
+
+```
+Number of parameters in model with lambda=100,000
+```{r}
+lambda<-100000
+d = svd(X)$d
+sum(d**2 / (d**2 + lambda))
+```
+
+```{r}
+beta2<- ridge(y, X, lambda =1000, rep(1,15))
+plot(beta2, xlab="California Counties 1999-2014", ylab="Coefficients", main="Ridge Regression with Lambda Equals 1000")
+```
+Number of parameters in model with lambda=1,000
+```{r}
+lambda<-1000
+d = svd(X)$d
+sum(d**2 / (d**2 + lambda))
+```
+## Heatmaps for Betas
+
+```{r}
+#getting unique county ids
+uniquefips<-unique(data$FIPS)
+
+#function to get beta in the simplest case where we just divide the death rate of one year by the previous year's death rate
+get_betas<-function(dataset,index){
+   beta<-dataset$Deathrate[index]/dataset$Deathrate[index-1]
+   return(beta)}
+```
+
+```{r}
+matrix_betas<-matrix(rep(0,15),nrow=15, ncol=1)
+colnames(matrix_betas)<-"b"
+test_sub<-subset(data, FIPS==13121)
+
+#getting beta values over time and space
+for (fips in uniquefips){
+  subsetted_data<-subset(data, FIPS ==fips)
+  indices<-c(2,3,4,5,6,7,8,9,10,11,12,13,14,15,16)
+  #nam<-paste("Fips", fips, sep="")
+  #colnames(matrix_betas)<-nam
+  matrix_betas<-cbind(matrix_betas,  sapply(indices, get_betas, dataset=subsetted_data))
+}
+
+colnames(matrix_betas[,2:3134])<-uniquefips
+```
+
+
+```{r}
+#making dataframe for betas from 2013-14 to make heatmap
+betas_df<-data.frame(matrix_betas[,2:3134])
+betas_2013_14_df<-data.frame(cbind(matrix_betas[15,2:3134], uniquefips))
+colnames(betas_2013_14_df)<-cbind("Betas", "fips")
+max(betas_2013_14_df$Betas, na.rm=TRUE)
+min(betas_2013_14_df$Betas, na.rm=TRUE)
+
+plot_usmap(data = betas_2013_14_df, values = "Betas", lines = "white") + 
+  scale_fill_continuous(low = "white", high ="firebrick", 
+                          name = "Betas from 2013-2014",labels=c("1","1.5","2","2.5","3"),
+                        breaks=c(1,1.5,2,2.5,3))+ theme(legend.position = "right")
+```
+
+```{r}
+#getting betas for 2008-09 to make heatmap
+betas_2008_09_df<-data.frame(cbind(matrix_betas[10,2:3134], uniquefips))
+colnames(betas_2008_09_df)<-cbind("Betas", "fips")
+max(betas_2008_09_df$Betas, na.rm=TRUE)
+min(betas_2008_09_df$Betas, na.rm=TRUE)
+
+plot_usmap(data = betas_2008_09_df, values = "Betas", lines = "white") + 
+  scale_fill_continuous(low = "white", high ="firebrick", 
+                        name = "Betas from 2008-2009",labels=c("1", "1.5", "2","2.5", "3"),
+                        breaks=c(1,1.5,2,2.5,3))+ theme(legend.position = "right")
+```
+
+
+```{r}
+#getting betas from 2003-04 to get heatmap
+betas_2003_04_df<-data.frame(cbind(matrix_betas[5,2:3134], uniquefips))
+colnames(betas_2003_04_df)<-cbind("Betas", "fips")
+max(betas_2003_04_df$Betas, na.rm=TRUE)
+min(betas_2003_04_df$Betas, na.rm=TRUE)
+
+plot_usmap(data = betas_2003_04_df, values = "Betas", lines = "white") + 
+  scale_fill_continuous(low = "white", high ="firebrick", 
+                        name = "Betas from 2003-2004",labels=c("1","1.5", "2","2.5" ,"3"),
+                        breaks=c(1 ,1.5,2,2.5,3))+ theme(legend.position = "right")
+```
+
+```{r}
+#getting betas for 1999-200 to make heatmap
+betas_1999_00_df<-data.frame(cbind(matrix_betas[1,2:3134], uniquefips))
+colnames(betas_1999_00_df)<-cbind("Betas", "fips")
+max(betas_1999_00_df$Betas, na.rm=TRUE)
+min(betas_1999_00_df$Betas, na.rm=TRUE)
+
+plot_usmap(data = betas_1999_00_df, values = "Betas", lines = "white") + 
+  scale_fill_continuous(low = "white", high ="firebrick", 
+                        name = "Betas from 1999-2000",labels=c("1","1.5", "2","2.5", "3"),
+                        breaks=c(1,1.5,2,2.5,3))+ theme(legend.position = "right")
+```
+
