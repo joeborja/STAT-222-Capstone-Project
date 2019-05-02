@@ -1,0 +1,69 @@
+---
+title: "Stat 222 KY Code"
+author: "A.J. Torre"
+date: "May 1, 2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+library(ggplot2)
+library(ggmap)
+library(maps)
+library(mapdata)
+library(stringr)
+```
+
+## Code for Betas
+
+```{r}
+#getting data on just kentucky to make map
+states <- map_data("state")
+dim(states)
+ky_df <- subset(states, region == "kentucky")
+head(ky_df)
+
+counties <- map_data("county")
+ky_county <- subset(counties, region == "kentucky")
+head(ky_county)
+```
+
+```{r}
+#reading in beta file
+beta<-read.csv("C:/Users/AJ/OneDrive/Documents/Stat 222/beta.csv")
+head(beta)
+```
+
+```{r}
+#doing some cleaning/ regex to make sure col values will match up when we merge the two dfs
+beta$City<-str_extract(beta$City, "\\w+\\s")
+head(beta)
+beta$City<-tolower(beta$City)
+head(beta)
+beta$City<-str_trim(beta$City)
+
+head(beta)
+```
+```{r}
+#merge two dfs
+ky_final<-merge(ky_county,beta, by.x="subregion", by.y="City")
+
+#followed some online code for this
+ditch_the_axes <- theme(
+  axis.text = element_blank(),
+  axis.line = element_blank(),
+  axis.ticks = element_blank(),
+  panel.border = element_blank(),
+  panel.grid = element_blank(),
+  axis.title = element_blank()
+)
+
+ky_base <- ggplot(data = ky_final, mapping = aes(x = long, y = lat.x, group = 
+                                                group)) +
+  coord_fixed(1.3) +
+  geom_polygon(color = "black", fill = "gray")
+
+ky_base + theme_nothing() +
+  geom_polygon(data = ky_final, aes(fill =beta) , color = "white") +
+  geom_polygon(color = "black", fill = NA)+ scale_fill_gradient(low="white", high="red")
+
+```
