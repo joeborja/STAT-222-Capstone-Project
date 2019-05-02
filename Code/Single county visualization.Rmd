@@ -1,0 +1,92 @@
+---
+title: "Single county visualization"
+date: "May 1, 2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyr)
+library(dplyr)
+library(stringr)
+library(tidyverse)
+library(usmap)
+library(scales)
+library(ggplot2)
+```
+
+## Data
+
+```{r}
+#read data itnto R
+data<-read.csv("~/Dropbox/Work/Courses/Berkeley/STAT 222/STAT-222-Capstone-Project/Data/deathrate.csv")
+
+#clean data
+
+#drop redundant index column
+data$X <- NULL
+
+#drop counties with missing poverty data
+data <- data[data$County != 'Kalawao County, HI',]
+data <- data[data$County != 'Mc Kean County, PA',]
+
+#drop duplicate rows
+data <- data[-c(788, 3924, 7060, 10196),]
+
+# Separate county and state names
+data <-separate(data = data, col = County, into = c("County", "State"), sep = ", ")
+```
+
+To subset data to only have Kentucky counties:
+
+```{r}
+ky_data <-subset(split_data, State=="KY")
+ky_counties<-unique(ky_split_data$County)
+```
+
+## Data visualization
+
+Visualization for 3 counties 
+
+## Fused Lasso model for single county over multiple years
+
+The following code implements the Fused Lasso regression for these same individual counties in Kentucky
+
+```{r}
+n <- length(ca_split_data_unique_counties)
+y_list <- vector("list", n)
+X_list <- vector('list', n)
+i <- 1
+
+for (county_name in ca_split_data_unique_counties) {
+  county <- ca_split_data[ca_split_data$County == county_name,]
+  county_y <- county[county$Year %in% 2000:2014, ]$Deathrate
+  county_x <- county[county$Year %in% 1999:2013, ]$Deathrate
+  county_X <- diag(county_x)
+  y_list[[i]] <- county_y
+  X_list[[i]] <- county_X
+  i <- i+1
+}
+
+library(Matrix)
+y <- do.call(c, y_list)
+X <- do.call(bdiag, X_list)
+X <- as.matrix(X)
+beta <- coef(lm(y ~ X + 0))
+
+#no restraints on lambda, using every data point as a parameter
+plot(beta,xlab="California Counties 1999-2014", ylab="Coefficient", main="Deathrate Coefficients for California Counties from 1999-2014")
+
+```
+
+Lasso path
+
+Model fit versus lambda 
+
+Number of parameters in model with lambda=100,000
+```{r}
+lambda<-100000
+d = svd(X)$d
+sum(d**2 / (d**2 + lambda))
+```
+
