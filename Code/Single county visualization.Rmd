@@ -41,52 +41,41 @@ To subset data to only have Kentucky counties:
 
 ```{r}
 ky_data <-subset(split_data, State=="KY")
-ky_counties<-unique(ky_split_data$County)
 ```
 
 ## Data visualization
 
 Visualization for 3 counties 
 
+```{r}
+ky_counties <- c('Bell County', 'Clark County', 'Pendleton County', 'Webster County')
+small_data <- (ky_data %>% filter(County %in% ky_counties))
+ggplot(small_data, aes(x=Year, y = Deathrate, color = County),xlab="Year", ylab="Mortality rate", main="Drug poisoning mortality rates in Kentucky Counties from 1999-2014") + geom_line()
+```
+
+
 ## Fused Lasso model for single county over multiple years
 
 The following code implements the Fused Lasso regression for these same individual counties in Kentucky
 
 ```{r}
-n <- length(ca_split_data_unique_counties)
-y_list <- vector("list", n)
-X_list <- vector('list', n)
-i <- 1
+library(extlasso)
 
-for (county_name in ca_split_data_unique_counties) {
-  county <- ca_split_data[ca_split_data$County == county_name,]
-  county_y <- county[county$Year %in% 2000:2014, ]$Deathrate
-  county_x <- county[county$Year %in% 1999:2013, ]$Deathrate
-  county_X <- diag(county_x)
-  y_list[[i]] <- county_y
-  X_list[[i]] <- county_X
-  i <- i+1
-}
+y <- (small_data %>% filter(County == ky_counties[2]))$Deathrate
+n = length(y)
+X = diag(n)
 
-library(Matrix)
-y <- do.call(c, y_list)
-X <- do.call(bdiag, X_list)
-X <- as.matrix(X)
-beta <- coef(lm(y ~ X + 0))
+ggplot(small_data, aes(x=Year, y = Deathrate, color = County),xlab="Year", ylab="Mortality rate", main="Drug poisoning mortality rates in Kentucky Counties from 1999-2014") + geom_line()
 
-#no restraints on lambda, using every data point as a parameter
-plot(beta,xlab="California Counties 1999-2014", ylab="Coefficient", main="Deathrate Coefficients for California Counties from 1999-2014")
+fit <- fusedlasso(X,y, lambda1 = 0, lambda2 = 10, intercept = FALSE, normalize = FALSE)
+plot(1999:2014, fit$coef)
+plot(1999:2014, y)
 
+ggplot() +
+  geom_line(small_data, aes(x = Year, y = Deathrate, color = County))
 ```
 
 Lasso path
 
-Model fit versus lambda 
-
-Number of parameters in model with lambda=100,000
-```{r}
-lambda<-100000
-d = svd(X)$d
-sum(d**2 / (d**2 + lambda))
-```
+Model fit versus lambda
 
